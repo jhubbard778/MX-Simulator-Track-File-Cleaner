@@ -13,31 +13,44 @@ namespace TrackFileCleaner
 
         public static void PromptEnter()
         {
-            PrintHeader();
+            PrintOutlinePrompt('#', "MX Simulator Track File Cleaner", Colors.cyan);
             PrintDescription();
-            Console.WriteLine("> Press the enter key when you are ready to clean...\n");
+            Console.Write("> Press the enter key when you are ready to clean...");
             ConsoleKeyInfo keyInfo = Console.ReadKey();
             while (keyInfo.Key != ConsoleKey.Enter)
             {
                 keyInfo = Console.ReadKey();
             }
+            Console.WriteLine();
         }
 
-        private static void PrintHeader()
+        public static void PromptClose()
         {
-            string outline = new string('#', MAX_CHARACTER_LIMIT);
-            
-            string CenterText = "MX Simulator Track File Cleaner";
+            PrintOutlinePrompt('#', "Done Cleaning Files! :)", Colors.cyan);
+            Console.Write("\n> Press any key to close the program...");
+            Console.ReadKey(true);
+        }
 
-            int spaces = outline.Length - CenterText.Length;
-            int padLeft = spaces / 2 + CenterText.Length;
+        public static void PrintOutlinePrompt(char outlineChar, string text, string outlineColor = Colors.normal, string textColor = Colors.normal)
+        {
+            string outline = new string(outlineChar, MAX_CHARACTER_LIMIT);
+            string CenterText = CenterStringFromOutline(outline, text);
 
-            CenterText = CenterText.PadLeft(padLeft);
-            outline = Colors.cyan + outline + Colors.normal;
+            outline = outlineColor + outline + Colors.normal;
+            CenterText = textColor + CenterText + Colors.normal;
 
-            Console.WriteLine(outline);
+            Console.WriteLine('\n' + outline);
             Console.WriteLine(CenterText);
             Console.WriteLine(outline + '\n');
+        }
+
+        private static string CenterStringFromOutline(string outline, string text)
+        {
+            int spaces = outline.Length - text.Length;
+            int padLeft = spaces / 2 + text.Length;
+
+            text = text.PadLeft(padLeft);
+            return text;
         }
 
         private static void PrintDescription()
@@ -56,6 +69,21 @@ namespace TrackFileCleaner
             description += Colors.normal + '\n';
 
             Console.WriteLine(description);
+        }
+
+        public static void PrintSoftWarning(string text)
+        {
+            Console.WriteLine(Colors.yellow + $" - Soft warning: {text}" + Colors.normal);
+        }
+
+        public static void PrintError(string text)
+        {
+            Console.WriteLine(Colors.red + $" - Error! {text}" + Colors.normal);
+        }
+
+        public static void PrintMessage(string text, string color)
+        {
+            Console.WriteLine(color + text + Colors.normal);
         }
 
         private static string WrapString(string str, int wrapLength)
