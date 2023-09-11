@@ -48,12 +48,12 @@ namespace TrackFileCleaner
             }
 
             // Delete all unused files and empty directories
-            DeleteAllUnusedFiles();
+            int NumDeletedItems = DeleteAllUnusedFiles();
 
             Globals.UsedFilePaths.Clear();
             Globals.UnusedFilePaths.Clear();
 
-            UserInterface.PromptClose();
+            UserInterface.PromptClose(NumDeletedItems);
         }
 
         /// <summary>
@@ -175,6 +175,7 @@ namespace TrackFileCleaner
         /// <param name="folder">The track folder</param>
         private static void AddUnusedFiles(string folder)
         {
+
             string[] files = Directory.GetFiles(Environment.CurrentDirectory + '\\' + folder, "*", SearchOption.AllDirectories);
             foreach (string file in files)
             {
@@ -186,6 +187,10 @@ namespace TrackFileCleaner
 
                 // If it's an ignore file we will skip
                 if (Globals.IgnoreFiles.Contains(FileName)) continue;
+
+                // if we have a saf file on the top level directory then we should skip this file
+                if (FileName.Split('/').Length == 1 && Path.GetExtension(FileName) == ".saf") continue;
+
 
                 if (!Globals.UsedFilePaths.Contains(CondensedFilePath))
                 {
@@ -368,7 +373,7 @@ namespace TrackFileCleaner
 
         }
 
-        private static void DeleteAllUnusedFiles()
+        private static int DeleteAllUnusedFiles()
         {
             UserInterface.PrintOutlinePrompt('#', "Deleting All Unused Files", Colors.cyan);
 
@@ -382,11 +387,12 @@ namespace TrackFileCleaner
 
                 try
                 {
+                    File.SetAttributes(FullPath, FileAttributes.Normal);
                     File.Delete(FullPath);
                     itemsDeleted++;
                     UserInterface.PrintMessage($" - Deleted file {file}", Colors.red);
                 }
-                catch (IOException ex)
+                catch (UnauthorizedAccessException ex)
                 {
                     UserInterface.PrintError($"Error deleting file {file}: {ex.Message}");
                 }
@@ -414,7 +420,7 @@ namespace TrackFileCleaner
                         itemsDeleted++;
                         UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory}", Colors.red);
                     }
-                    catch (IOException ex)
+                    catch (UnauthorizedAccessException ex)
                     {
                         UserInterface.PrintError($"Error deleting directory {dir}: {ex.Message}");
                     }
@@ -425,6 +431,8 @@ namespace TrackFileCleaner
             {
                 UserInterface.PrintMessage(" - No Files/Directories to delete! You're all clean! :)", Colors.green);
             }
+
+            return itemsDeleted;
         }
 
         private static int SortDirectoryByDepth(string x, string y)
