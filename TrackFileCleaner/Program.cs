@@ -24,7 +24,6 @@ namespace TrackFileCleaner
                 FileExistsInDir(dir, SourceFiles);
 
                 string BasenameFolder = new DirectoryInfo(dir).Name;
-                string BasenameFolderLowered = BasenameFolder.ToLower();
 
                 // Get any source files in the subdirectory
                 foreach (string subdir in subdirs)
@@ -36,13 +35,13 @@ namespace TrackFileCleaner
                 if (PrintOutline) UserInterface.PrintOutlinePrompt('-', $"Reading files from {BasenameFolder}...", Colors.cyan);
 
                 // This function will read in all the used source files into Globals.UsedFilePaths
-                ReadAllSourceFiles(BasenameFolderLowered, SourceFiles);
+                ReadAllSourceFiles(BasenameFolder, SourceFiles);
 
                 // Now that we have all the used files, go through all the files in every subdirectory and see if it's being used
-                AddUnusedFiles(BasenameFolderLowered);
+                AddUnusedFiles(BasenameFolder);
 
                 // After we're done with this folder remove any used files associated with the folder
-                RemoveUsedFiles(BasenameFolderLowered);
+                RemoveUsedFiles(BasenameFolder);
 
                 // Clear the source files list
                 SourceFiles.Clear();
@@ -79,7 +78,6 @@ namespace TrackFileCleaner
             // Go through all the valid MX Simulator Files
             foreach (StreamReader SourceFile in files)
             {
-
                 string filename = ((FileStream)SourceFile.BaseStream).Name;
 
                 // Skip each line in frills.js for now
@@ -108,17 +106,24 @@ namespace TrackFileCleaner
                         string SourceFilename = line[1..SeparatorIndex].ToLower();
                         string FullSourcePath = (Environment.CurrentDirectory + "/" + SourceFilename).Replace('/', '\\');
 
+                        // If the file doesn't exist we'll try adding a scram extension to it. If it still doesn't exist skip it
+                        if (!File.Exists(FullSourcePath))
+                        {
+                            FullSourcePath += ".scram";
+                            SourceFilename += ".scram";
+                        }
+
                         // If the filename exists and isn't in the list already add it
                         if (File.Exists(FullSourcePath) && !Globals.UsedFilePaths.Contains(SourceFilename))
                         {
                             // If the item was in the unused files list remove it
-                            int UnusedIndex = Globals.UnusedFilePaths.IndexOf(SourceFilename);
+                            int UnusedIndex = Globals.UnusedFilePaths.IndexOf(SourceFilename.Replace('/', '\\'));
                             if (UnusedIndex != -1)
                             {
                                 Globals.UnusedFilePaths.RemoveAt(UnusedIndex);
                             }
 
-                            if (!SourceFilename.Contains(folder))
+                            if (!SourceFilename.Contains(folder, StringComparison.OrdinalIgnoreCase))
                             {
                                 UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference.");
                             }
@@ -131,7 +136,7 @@ namespace TrackFileCleaner
                                 string filepath = Environment.CurrentDirectory + '\\' + SourceFilename;
                                 if (!File.Exists(filepath))
                                 {
-                                    UserInterface.PrintError($"Cannot Access: {SourceFilename}. File does not exist.");
+                                    UserInterface.PrintMessage($" - Error Accessing File {SourceFilename}. File does not exist.", Colors.red);
                                     if (SeparatorIndex == line.Length) break;
                                     index = line.IndexOf('@', SeparatorIndex + 1);
                                     continue;
@@ -181,25 +186,28 @@ namespace TrackFileCleaner
             foreach (string file in files)
             {
                 // Convert a full path to a condensed path starting at the track folder.
-                // Ex. C:\\Users\\Jakob\\Desktop\\TrackFolder\\TrackFile.txt converts to: trackfolder/trackfile.txt
+                // Ex. C:\\Users\\Jakob\\Desktop\\TrackFolder\\TrackFile.txt converts to: Trackfolder/Trackfile.txt
 
-                string CondensedFilePath = file[file.IndexOf(folder)..].Replace('\\', '/').ToLower();
+                string CondensedFilePath = file[file.IndexOf(folder)..].Replace('\\', '/');
                 string FileName = Path.GetFileName(CondensedFilePath);
 
+                int depth = CondensedFilePath.Split('/').Length;
+
                 // If it's an ignore file we will skip
-                if (Globals.IgnoreFiles.Contains(FileName)) continue;
+                if (depth <= 2 && Globals.IgnoreFiles.Contains(FileName)) continue;
+
+                string extension = Path.GetExtension(FileName);
 
                 // if we have a saf file on the top level directory then we should skip this file
-                if (FileName.Split('/').Length == 1 && Path.GetExtension(FileName) == ".saf") continue;
+                if (FileName.Split('/').Length == 1 && extension == ".saf") continue;
 
-
-                if (!Globals.UsedFilePaths.Contains(CondensedFilePath))
+                if (!Globals.UsedFilePaths.Contains(CondensedFilePath, StringComparer.OrdinalIgnoreCase))
                 {
                     // Here we handle norm and specular maps, if the file they reference exists it's added to the UsedFilePaths list
                     bool GotoNextFile = HandleNormsAndSpecs(CondensedFilePath, folder);
                     if (GotoNextFile) continue;
 
-                    Globals.UnusedFilePaths.Add(CondensedFilePath);
+                    Globals.UnusedFilePaths.Add(CondensedFilePath.Replace('/', '\\'));
                 }
             }
         }
@@ -222,21 +230,21 @@ namespace TrackFileCleaner
                 if (!SeqLine.Contains('@')) continue;
 
                 int i = 1 + SeqLine.IndexOf('@');
-                string SeqSourceFilename = SeqLine[i..].ToLower();
+                string SeqSourceFilename = SeqLine[i..];
 
                 if (!list.Contains(SeqSourceFilename))
                 {
-                    int UnusedIndex = Globals.UnusedFilePaths.IndexOf(SeqSourceFilename);
+                    int UnusedIndex = Globals.UnusedFilePaths.IndexOf(SeqSourceFilename.Replace('/', '\\'));
                     if (UnusedIndex != -1)
                     {
                         Globals.UnusedFilePaths.RemoveAt(UnusedIndex);
                     }
 
-                    if (WarningMessage && !SeqSourceFilename.Contains(BasenameFolder))
+                    if (WarningMessage && !SeqSourceFilename.Contains(BasenameFolder, StringComparison.OrdinalIgnoreCase))
                     {
                         UserInterface.PrintSoftWarning($"File \"{SeqSourceFilename}\" is an outside reference.");
                     }
-                    list.Add(SeqSourceFilename);
+                    list.Add(SeqSourceFilename.ToLower());
                 }
             }
             SeqFile.Close();
@@ -272,22 +280,22 @@ namespace TrackFileCleaner
                     ImageExtension = Path.GetExtension(SeqFiles[0]);
                 }
 
-                string DecalName = filepath[..index] + ImageExtension;
-                string AssociatedSeq = filepath[..index] + extension;
+                string DecalName = (filepath[..index] + ImageExtension).ToLower();
+                string AssociatedSeq = (filepath[..index] + extension).ToLower();
 
                 bool DecalExists = Globals.UsedFilePaths.Contains(DecalName) || (extension != ImageExtension && Globals.UsedFilePaths.Contains(AssociatedSeq));
 
                 // If the decal associated with this normal or spec is being used continue
                 if (DecalExists)
                 {
-                    Globals.UsedFilePaths.Add(filepath);
+                    Globals.UsedFilePaths.Add(filepath.ToLower());
 
                     // If we have a sequence file we will add it to the UsedFilePaths list since it wouldn't have been added
                     if (extension == ".seq")
                     {
                         foreach (string SeqFile in SeqFiles)
                         {
-                            if (!SeqFile.Contains(folder))
+                            if (!SeqFile.Contains(folder, StringComparison.OrdinalIgnoreCase))
                             {
                                 UserInterface.PrintSoftWarning($"File \"{SeqFile}\" is an outside reference.");
                             }
@@ -315,6 +323,11 @@ namespace TrackFileCleaner
                 string repeat = (filepath.Contains("-repeat")) ? "-repeat" : "";
 
                 string extension = Path.GetExtension(filepath);
+                if (extension == ".scram")
+                {
+                    string actualExtension = Path.GetExtension(filepath[..filepath.IndexOf(".scram")]);
+                    extension = actualExtension + extension;
+                }
 
                 List<string> SeqFiles = new List<string>();
                 string ImageExtension = extension;
@@ -325,25 +338,25 @@ namespace TrackFileCleaner
                     ImageExtension = Path.GetExtension(SeqFiles[0]);
                 }
 
-                string StatueJM = filepath[..index] + ".jm";
-                string associatedPNG = filepath[..index] + repeat + ImageExtension;
+                string StatueJM = (filepath[..index] + ".jm").ToLower();
+                string associatedPNG = (filepath[..index] + repeat + ImageExtension).ToLower();
                 
                 // Last check if statue exists with a sequence file
-                string AssociatedSeq = filepath[..index] + repeat + extension;
+                string AssociatedSeq = (filepath[..index] + repeat + extension).ToLower();
 
                 bool StatueExists = Globals.UsedFilePaths.Contains(StatueJM) || Globals.UsedFilePaths.Contains(associatedPNG) || (extension != ImageExtension && Globals.UsedFilePaths.Contains(AssociatedSeq));
 
                 // if the JM associated with this norm or spec map is being used continue to next file
                 if (StatueExists)
                 {
-                    Globals.UsedFilePaths.Add(filepath);
+                    Globals.UsedFilePaths.Add(filepath.ToLower());
 
                     // Add sequence files to UsedFilePaths list
                     if (extension == ".seq")
                     {
                         foreach (string SeqFile in SeqFiles)
                         {
-                            if (!SeqFile.Contains(folder))
+                            if (!SeqFile.Contains(folder, StringComparison.OrdinalIgnoreCase))
                             {
                                 UserInterface.PrintSoftWarning($"File \"{SeqFile}\" is an outside reference.");
                             }
@@ -370,12 +383,19 @@ namespace TrackFileCleaner
 
             foreach (Match match in matches)
             {
-                string fileReference = match.Groups[1].Value.ToLower()[1..];
+                string fileReference = match.Groups[1].Value[1..];
                 string FullPath = (Environment.CurrentDirectory + "/" + fileReference).Replace('/','\\');
 
-                if (File.Exists(FullPath) && !Globals.UsedFilePaths.Contains(fileReference))
+                // If the file doesn't exist we'll try adding a scram extension to it. If it still doesn't exist skip it
+                if (!File.Exists(FullPath))
                 {
-                    int UnusedIndex = Globals.UnusedFilePaths.IndexOf(fileReference);
+                    FullPath += ".scram";
+                    fileReference += ".scram";
+                }
+
+                if (File.Exists(FullPath) && !Globals.UsedFilePaths.Contains(fileReference.ToLower()))
+                {
+                    int UnusedIndex = Globals.UnusedFilePaths.IndexOf(fileReference.Replace('/', '\\'));
                     if (UnusedIndex != -1)
                     {
                         Globals.UnusedFilePaths.RemoveAt(UnusedIndex);
@@ -386,11 +406,11 @@ namespace TrackFileCleaner
                         ReadSeqFiles(FullPath, folder, Globals.UsedFilePaths);
                     }
 
-                    if (!fileReference.Contains(folder))
+                    if (!fileReference.Contains(folder, StringComparison.OrdinalIgnoreCase))
                     {
                         UserInterface.PrintSoftWarning($"File \"{fileReference}\" is an outside reference.");
                     }
-                    Globals.UsedFilePaths.Add(fileReference);
+                    Globals.UsedFilePaths.Add(fileReference.ToLower());
                 }
             }
 
@@ -403,21 +423,22 @@ namespace TrackFileCleaner
             long ItemsDeleted = 0;
             long TotalBytesMoved = 0;
 
-            if (!Directory.Exists(Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP"))
+            if (!Directory.Exists(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP"))
             {
-                Directory.CreateDirectory(Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP");
+                Directory.CreateDirectory(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP");
             }
 
             // Delete every file that's unused
             foreach (string file in Globals.UnusedFilePaths)
             {
-                string FullPath = Environment.CurrentDirectory + "/" + file;
+                string FullPath = (Environment.CurrentDirectory + "\\" + file);
+
                 if (!File.Exists(FullPath)) continue;
 
                 try
                 {
-                    string[] fileArgs = file.Split("/");
-                    string BackupDirectory = Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP/" + fileArgs[0];
+                    string[] fileArgs = file.Split("\\");
+                    string BackupDirectory = Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP\\" + fileArgs[0];
                     for (int i = 0; i < fileArgs.Length - 1; i++) 
                     {
                         // Add the root directory if it doesn't exist
@@ -428,24 +449,30 @@ namespace TrackFileCleaner
 
                         if (i < fileArgs.Length - 2)
                         {
-                            BackupDirectory += "/" + fileArgs[i + 1];
+                            BackupDirectory += "\\" + fileArgs[i + 1];
                         }
                     }
 
                     File.SetAttributes(FullPath, FileAttributes.Normal);
                     long BytesToMove = new FileInfo(FullPath).Length;
-                    string NewFileDestination = Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP/" + file;
+                    string NewFileDestination = Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP\\" + file;
+                    if (File.Exists(NewFileDestination))
+                    {
+                        File.SetAttributes(NewFileDestination, FileAttributes.Normal);
+                        File.Delete(NewFileDestination);
+                    }
+
                     File.Move(FullPath, NewFileDestination);
 
                     // if we successfully deleted the file add to accumulators
                     TotalBytesMoved += BytesToMove;
                     ItemsDeleted++;
 
-                    UserInterface.PrintMessage($" - Removed file {file}", Colors.red);
+                    UserInterface.PrintMessage($" - Removed file {file.Replace('\\', '/')}", Colors.red);
                 }
-                catch (UnauthorizedAccessException ex)
+                catch (IOException ex)
                 {
-                    UserInterface.PrintError($"Error Removing file {file}: {ex.Message}");
+                    UserInterface.PrintMessage($"- Error Removing file {file.Replace('\\', '/')}: {ex.Message}", Colors.red);
                 }
             }
 
@@ -461,22 +488,22 @@ namespace TrackFileCleaner
                 string[] subfolders = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
 
                 int indexToTrimStart = Environment.CurrentDirectory.Length + 1;
-                string CondensedDirectory = dir[indexToTrimStart..].Replace('\\','/').ToLower();
+                string CondensedDirectory = dir[indexToTrimStart..];
 
                 if (files.Length == 0 && subfolders.Length == 0)
                 {
                     try
                     {
                         Directory.Delete(dir);
-                        if (CondensedDirectory != "file-cleaner-backup")
+                        if (CondensedDirectory != "FILE-CLEANER-BACKUP")
                         {
                             ItemsDeleted++;
-                            UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory}", Colors.red);
+                            UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory.Replace('\\', '/')}", Colors.red);
                         }                       
                     }
                     catch (IOException ex)
                     {
-                        UserInterface.PrintError($"Error deleting directory {dir}: {ex.Message}");
+                        UserInterface.PrintMessage($" - Error deleting directory: {CondensedDirectory.Replace('\\', '/')}: {ex.Message}", Colors.red);
                     }
                 }
             }

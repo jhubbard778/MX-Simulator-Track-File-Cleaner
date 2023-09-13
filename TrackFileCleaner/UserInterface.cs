@@ -90,6 +90,20 @@ namespace TrackFileCleaner
 
             description = WrapString(description, MAX_CHARACTER_LIMIT);
 
+            string warning = "- WARNING: This executable deletes any non-related track files.  " +
+                "This means that any file not referenced by a track in the working directory will be deleted!\n";
+
+            warning = Colors.bright + Colors.red + WrapString(warning, MAX_CHARACTER_LIMIT) + new string('-', MAX_CHARACTER_LIMIT) + '\n' + Colors.normal;
+
+            string extraDescription = "- There is a safeguard in place by creating a backup folder. If you think anything important might've been deleted, you " +
+                "can go back and grab it in 'FILE-CLEANER-BACKUP'. At the end of the execution of the program, you will be prompted if you would like to delete " +
+                "the backup folder. If you are sure every file in there is non-essential you can delete it.\n";
+
+            extraDescription = Colors.bright + WrapString(extraDescription, MAX_CHARACTER_LIMIT) + Colors.normal;
+
+            description += warning;
+            description += extraDescription;
+
             description += Colors.cyan;
             description += new string('-', MAX_CHARACTER_LIMIT);
             description += Colors.normal + '\n';
@@ -100,11 +114,6 @@ namespace TrackFileCleaner
         public static void PrintSoftWarning(string text)
         {
             Console.WriteLine(Colors.yellow + $" - Soft warning: {text}" + Colors.normal);
-        }
-
-        public static void PrintError(string text)
-        {
-            Console.WriteLine(Colors.red + $" - Error! {text}" + Colors.normal);
         }
 
         public static void PrintMessage(string text, string color)
