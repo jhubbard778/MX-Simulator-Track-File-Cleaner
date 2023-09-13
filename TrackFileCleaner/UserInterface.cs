@@ -24,10 +24,36 @@ namespace TrackFileCleaner
             Console.WriteLine();
         }
 
-        public static void PromptClose(long[] items)
+        public static void PromptBackupDeletion(long[] items, bool backupDirectoryExists)
         {
-            PrintOutlinePrompt('#', $"Done Cleaning Files! :) | Deleted {items[0]} Items ({Program.BytesToString(items[1])})", Colors.cyan);
-            Console.Write("\n> Press any key to close the program...");
+            string MoveString = (backupDirectoryExists) ? "to FILE-CLEANER-BACKUP" : "";
+            string BytesToString = Program.BytesToString(items[1]);
+
+            PrintOutlinePrompt('#', $"Moved {items[0]} Items ({BytesToString}) {MoveString}", Colors.cyan);
+            
+            if (backupDirectoryExists)
+            {
+
+                Console.Write("\n> Would you like to delete the backup folder? (y/n) | ");
+                string UserInput = Console.ReadLine() ?? "";
+                while (UserInput != "y" && UserInput != "n")
+                {
+                    Console.Write("\n> Would you like to delete the backup folder? (y/n) | ");
+                    UserInput = Console.ReadLine() ?? "";
+                }
+
+                if (UserInput == "y")
+                {
+                    DirectoryInfo DirInfo = new DirectoryInfo(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP");
+                    long totalSize = Program.DirSize(DirInfo);
+                    string DirectorySize = Program.BytesToString(totalSize);
+
+                    Program.DeleteBackupDirectory();
+                    Console.WriteLine(Colors.red + $"\n - Deleted backup folder 'FILE-CLEANER-BACKUP' ({DirectorySize})" + Colors.normal);
+                }
+            }
+
+            Console.Write("\n> Press any key to exit the program...");
             Console.ReadKey(true);
         }
 

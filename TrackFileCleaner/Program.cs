@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO.Enumeration;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.RegularExpressions;
 
 namespace TrackFileCleaner
@@ -14,6 +15,8 @@ namespace TrackFileCleaner
             
             foreach (string dir in dirs)
             {
+                if (dir == Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP") continue;
+
                 List<StreamReader> SourceFiles = new List<StreamReader>();
                 string[] subdirs = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
 
@@ -46,12 +49,12 @@ namespace TrackFileCleaner
             }
 
             // Delete all unused files and empty directories
-            long[] FilesRet = DeleteAllUnusedFiles();
+            long[] FilesRet = RemoveAllUnusedFiles();
 
             Globals.UsedFilePaths.Clear();
             Globals.UnusedFilePaths.Clear();
 
-            UserInterface.PromptClose(FilesRet);
+            UserInterface.PromptBackupDeletion(FilesRet, Directory.Exists(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP"));
         }
 
         /// <summary>
@@ -393,12 +396,17 @@ namespace TrackFileCleaner
 
         }
 
-        private static long[] DeleteAllUnusedFiles()
+        private static long[] RemoveAllUnusedFiles()
         {
-            UserInterface.PrintOutlinePrompt('#', "Deleting All Unused Files", Colors.cyan);
+            UserInterface.PrintOutlinePrompt('#', "Removing All Unused Files", Colors.cyan);
 
             long ItemsDeleted = 0;
-            long TotalBytesDeleted = 0;
+            long TotalBytesMoved = 0;
+
+            if (!Directory.Exists(Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP"))
+            {
+                Directory.CreateDirectory(Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP");
+            }
 
             // Delete every file that's unused
             foreach (string file in Globals.UnusedFilePaths)
@@ -408,19 +416,36 @@ namespace TrackFileCleaner
 
                 try
                 {
+                    string[] fileArgs = file.Split("/");
+                    string BackupDirectory = Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP/" + fileArgs[0];
+                    for (int i = 0; i < fileArgs.Length - 1; i++) 
+                    {
+                        // Add the root directory if it doesn't exist
+                        if (!Directory.Exists(BackupDirectory))
+                        {
+                            Directory.CreateDirectory(BackupDirectory);
+                        }
+
+                        if (i < fileArgs.Length - 2)
+                        {
+                            BackupDirectory += "/" + fileArgs[i + 1];
+                        }
+                    }
+
                     File.SetAttributes(FullPath, FileAttributes.Normal);
-                    long BytesToDelete = new FileInfo(FullPath).Length;
-                    File.Delete(FullPath);
+                    long BytesToMove = new FileInfo(FullPath).Length;
+                    string NewFileDestination = Environment.CurrentDirectory + "/FILE-CLEANER-BACKUP/" + file;
+                    File.Move(FullPath, NewFileDestination);
 
                     // if we successfully deleted the file add to accumulators
-                    TotalBytesDeleted += BytesToDelete;
+                    TotalBytesMoved += BytesToMove;
                     ItemsDeleted++;
 
-                    UserInterface.PrintMessage($" - Deleted file {file}", Colors.red);
+                    UserInterface.PrintMessage($" - Removed file {file}", Colors.red);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    UserInterface.PrintError($"Error deleting file {file}: {ex.Message}");
+                    UserInterface.PrintError($"Error Removing file {file}: {ex.Message}");
                 }
             }
 
@@ -443,10 +468,13 @@ namespace TrackFileCleaner
                     try
                     {
                         Directory.Delete(dir);
-                        ItemsDeleted++;
-                        UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory}", Colors.red);
+                        if (CondensedDirectory != "file-cleaner-backup")
+                        {
+                            ItemsDeleted++;
+                            UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory}", Colors.red);
+                        }                       
                     }
-                    catch (UnauthorizedAccessException ex)
+                    catch (IOException ex)
                     {
                         UserInterface.PrintError($"Error deleting directory {dir}: {ex.Message}");
                     }
@@ -455,10 +483,10 @@ namespace TrackFileCleaner
 
             if (ItemsDeleted == 0)
             {
-                UserInterface.PrintMessage(" - No Files/Directories to delete! You're all clean! :)", Colors.green);
+                UserInterface.PrintMessage(" - No Files/Directories to remove! You're all clean! :)", Colors.green);
             }
 
-            return new long[] {ItemsDeleted, TotalBytesDeleted};
+            return new long[] {ItemsDeleted, TotalBytesMoved};
         }
 
         private static int SortDirectoryByDepth(string x, string y)
@@ -466,6 +494,11 @@ namespace TrackFileCleaner
             int xDepth = x.Split('\\').Length;
             int yDepth = y.Split('\\').Length;
             return yDepth - xDepth;
+        }
+
+        public static void DeleteBackupDirectory()
+        {
+            Directory.Delete(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP", true);
         }
 
         public static string BytesToString(long bytes)
@@ -481,6 +514,24 @@ namespace TrackFileCleaner
             }
 
             return $"{retBytes:0.##} {sizes[order]}";
+        }
+
+        public static long DirSize(DirectoryInfo d)
+        {
+            long size = 0;
+            // Add file sizes.
+            FileInfo[] fis = d.GetFiles();
+            foreach (FileInfo fi in fis)
+            {
+                size += fi.Length;
+            }
+            // Add subdirectory sizes.
+            DirectoryInfo[] dis = d.GetDirectories();
+            foreach (DirectoryInfo di in dis)
+            {
+                size += DirSize(di);
+            }
+            return size;
         }
     }
 }
