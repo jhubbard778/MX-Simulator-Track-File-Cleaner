@@ -24,9 +24,9 @@ namespace TrackFileCleaner
             Console.WriteLine();
         }
 
-        public static void PromptClose(int items)
+        public static void PromptClose(long[] items)
         {
-            PrintOutlinePrompt('#', $"Done Cleaning Files! :) | Deleted {items} Items", Colors.cyan);
+            PrintOutlinePrompt('#', $"Done Cleaning Files! :) | Deleted {items[0]} Items ({Program.BytesToString(items[1])})", Colors.cyan);
             Console.Write("\n> Press any key to close the program...");
             Console.ReadKey(true);
         }

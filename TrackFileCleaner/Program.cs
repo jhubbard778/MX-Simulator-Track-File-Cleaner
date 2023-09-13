@@ -41,19 +41,17 @@ namespace TrackFileCleaner
                 // After we're done with this folder remove any used files associated with the folder
                 RemoveUsedFiles(BasenameFolderLowered);
 
-                if (PrintOutline) UserInterface.PrintOutlinePrompt('-', $"Done grabbing excess files from {BasenameFolder}...", Colors.green, Colors.green);
-
                 // Clear the source files list
                 SourceFiles.Clear();
             }
 
             // Delete all unused files and empty directories
-            int NumDeletedItems = DeleteAllUnusedFiles();
+            long[] FilesRet = DeleteAllUnusedFiles();
 
             Globals.UsedFilePaths.Clear();
             Globals.UnusedFilePaths.Clear();
 
-            UserInterface.PromptClose(NumDeletedItems);
+            UserInterface.PromptClose(FilesRet);
         }
 
         /// <summary>
@@ -264,17 +262,20 @@ namespace TrackFileCleaner
                 string extension = Path.GetExtension(filepath);
 
                 List<string> SeqFiles = new List<string>();
-                string DecalExtension = extension;
+                string ImageExtension = extension;
                 if (extension == ".seq")
                 {
                     ReadSeqFiles(filepath, folder, SeqFiles, false);
-                    DecalExtension = Path.GetExtension(SeqFiles[0]);
+                    ImageExtension = Path.GetExtension(SeqFiles[0]);
                 }
 
-                string DecalName = filepath[..index] + DecalExtension;
+                string DecalName = filepath[..index] + ImageExtension;
+                string AssociatedSeq = filepath[..index] + extension;
+
+                bool DecalExists = Globals.UsedFilePaths.Contains(DecalName) || (extension != ImageExtension && Globals.UsedFilePaths.Contains(AssociatedSeq));
 
                 // If the decal associated with this normal or spec is being used continue
-                if (Globals.UsedFilePaths.Contains(DecalName))
+                if (DecalExists)
                 {
                     Globals.UsedFilePaths.Add(filepath);
 
@@ -312,19 +313,38 @@ namespace TrackFileCleaner
 
                 string extension = Path.GetExtension(filepath);
 
+                List<string> SeqFiles = new List<string>();
+                string ImageExtension = extension;
+
+                if (extension == ".seq")
+                {
+                    ReadSeqFiles(filepath, folder, SeqFiles, false);
+                    ImageExtension = Path.GetExtension(SeqFiles[0]);
+                }
+
                 string StatueJM = filepath[..index] + ".jm";
-                string associatedPNG = filepath[..index] + repeat + extension;
+                string associatedPNG = filepath[..index] + repeat + ImageExtension;
+                
+                // Last check if statue exists with a sequence file
+                string AssociatedSeq = filepath[..index] + repeat + extension;
+
+                bool StatueExists = Globals.UsedFilePaths.Contains(StatueJM) || Globals.UsedFilePaths.Contains(associatedPNG) || (extension != ImageExtension && Globals.UsedFilePaths.Contains(AssociatedSeq));
 
                 // if the JM associated with this norm or spec map is being used continue to next file
-                if (Globals.UsedFilePaths.Contains(StatueJM) || Globals.UsedFilePaths.Contains(associatedPNG))
+                if (StatueExists)
                 {
                     Globals.UsedFilePaths.Add(filepath);
 
                     // Add sequence files to UsedFilePaths list
                     if (extension == ".seq")
                     {
-                        List<string> SeqFiles = new List<string>();
-                        ReadSeqFiles(filepath, folder, SeqFiles);
+                        foreach (string SeqFile in SeqFiles)
+                        {
+                            if (!SeqFile.Contains(folder))
+                            {
+                                UserInterface.PrintSoftWarning($"File \"{SeqFile}\" is an outside reference.");
+                            }
+                        }
                         Globals.UsedFilePaths.AddRange(SeqFiles);
                     }
                     
@@ -373,11 +393,12 @@ namespace TrackFileCleaner
 
         }
 
-        private static int DeleteAllUnusedFiles()
+        private static long[] DeleteAllUnusedFiles()
         {
             UserInterface.PrintOutlinePrompt('#', "Deleting All Unused Files", Colors.cyan);
 
-            int itemsDeleted = 0;
+            long ItemsDeleted = 0;
+            long TotalBytesDeleted = 0;
 
             // Delete every file that's unused
             foreach (string file in Globals.UnusedFilePaths)
@@ -388,8 +409,13 @@ namespace TrackFileCleaner
                 try
                 {
                     File.SetAttributes(FullPath, FileAttributes.Normal);
+                    long BytesToDelete = new FileInfo(FullPath).Length;
                     File.Delete(FullPath);
-                    itemsDeleted++;
+
+                    // if we successfully deleted the file add to accumulators
+                    TotalBytesDeleted += BytesToDelete;
+                    ItemsDeleted++;
+
                     UserInterface.PrintMessage($" - Deleted file {file}", Colors.red);
                 }
                 catch (UnauthorizedAccessException ex)
@@ -417,7 +443,7 @@ namespace TrackFileCleaner
                     try
                     {
                         Directory.Delete(dir);
-                        itemsDeleted++;
+                        ItemsDeleted++;
                         UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory}", Colors.red);
                     }
                     catch (UnauthorizedAccessException ex)
@@ -427,12 +453,12 @@ namespace TrackFileCleaner
                 }
             }
 
-            if (itemsDeleted == 0)
+            if (ItemsDeleted == 0)
             {
                 UserInterface.PrintMessage(" - No Files/Directories to delete! You're all clean! :)", Colors.green);
             }
 
-            return itemsDeleted;
+            return new long[] {ItemsDeleted, TotalBytesDeleted};
         }
 
         private static int SortDirectoryByDepth(string x, string y)
@@ -440,6 +466,21 @@ namespace TrackFileCleaner
             int xDepth = x.Split('\\').Length;
             int yDepth = y.Split('\\').Length;
             return yDepth - xDepth;
+        }
+
+        public static string BytesToString(long bytes)
+        {
+
+            double retBytes = (double)bytes;
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            int order = 0;
+            while (retBytes >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                retBytes /= 1024;
+            }
+
+            return $"{retBytes:0.##} {sizes[order]}";
         }
     }
 }
