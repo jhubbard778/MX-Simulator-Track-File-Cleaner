@@ -163,7 +163,7 @@ namespace TrackFileCleaner
         {
             for (int i = 0; i < Globals.UsedFilePaths.Count; i++)
             {
-                if (Globals.UsedFilePaths[i].Contains(folder))
+                if (Globals.UsedFilePaths[i].StartsWith(folder + "/"))
                 {
                     Globals.UsedFilePaths.RemoveAt(i);
                     i--;
@@ -193,8 +193,11 @@ namespace TrackFileCleaner
 
                 int depth = CondensedFilePath.Split('/').Length;
 
+                // Skip windows thumbs.db files
+                if (FileName == "Thumbs.db") continue;
+
                 // If it's an ignore file we will skip
-                if (depth <= 2 && Globals.IgnoreFiles.Contains(FileName)) continue;
+                if (depth <= 3 && Globals.IgnoreFiles.Contains(FileName)) continue;
 
                 string extension = Path.GetExtension(FileName);
 
