@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
@@ -75,10 +76,12 @@ namespace TrackFileCleaner
 
         private static void ReadAllSourceFiles(string folder, List<StreamReader> files)
         {
+            List<string> FilesNotFound = new List<string>(); 
             // Go through all the valid MX Simulator Files
             foreach (StreamReader SourceFile in files)
             {
                 string filename = ((FileStream)SourceFile.BaseStream).Name;
+                string filenameStripped = filename[(filename.IndexOf(folder) + folder.Length + 1)..].Replace("\\","/");
 
                 // Skip each line in frills.js for now
                 if (filename.EndsWith("frills.js") || filename.EndsWith("nofrills.js"))
@@ -103,7 +106,8 @@ namespace TrackFileCleaner
                             SeparatorIndex = line.Length;
                         }
 
-                        string SourceFilename = line[1..SeparatorIndex].ToLower();
+                        string FileSourceName = line[1..SeparatorIndex];
+                        string SourceFilename = FileSourceName.ToLower();
                         string FullSourcePath = (Environment.CurrentDirectory + "/" + SourceFilename).Replace('/', '\\');
 
                         // If the file doesn't exist we'll try adding a scram extension to it. If it still doesn't exist skip it
@@ -111,6 +115,12 @@ namespace TrackFileCleaner
                         {
                             FullSourcePath += ".scram";
                             SourceFilename += ".scram";
+                        }
+
+                        if (!File.Exists(FullSourcePath) && !FilesNotFound.Contains(FullSourcePath))
+                        {
+                            FilesNotFound.Add(FullSourcePath);
+                            UserInterface.PrintSoftWarning($"Could not find source file \"{FileSourceName}\" from {filenameStripped}.");
                         }
 
                         // If the filename exists and isn't in the list already add it
@@ -125,7 +135,7 @@ namespace TrackFileCleaner
 
                             if (!SourceFilename.Contains(folder, StringComparison.OrdinalIgnoreCase))
                             {
-                                UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference.");
+                                UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference in {filenameStripped}.");
                             }
 
                             Globals.UsedFilePaths.Add(SourceFilename);
