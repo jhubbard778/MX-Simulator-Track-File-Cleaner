@@ -489,51 +489,44 @@ namespace TrackFileCleaner
                 }
             }
 
-            // Delete any folders with zero items in them
-            string[] dirs = Directory.GetDirectories(Environment.CurrentDirectory, "*", SearchOption.AllDirectories);
-            
-            // Sort in descending order by directory length
-            Array.Sort(dirs, SortDirectoryByDepth);
-
-            foreach (string dir in dirs)
-            {
-                string[] files = Directory.GetFiles(dir);
-                string[] subfolders = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
-
-                int indexToTrimStart = Environment.CurrentDirectory.Length + 1;
-                string CondensedDirectory = dir[indexToTrimStart..];
-
-                if (files.Length == 0 && subfolders.Length == 0)
-                {
-                    try
-                    {
-                        Directory.Delete(dir);
-                        if (CondensedDirectory != "FILE-CLEANER-BACKUP")
-                        {
-                            ItemsDeleted++;
-                            UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory.Replace('\\', '/')}", Colors.red);
-                        }                       
-                    }
-                    catch (IOException ex)
-                    {
-                        UserInterface.PrintMessage($" - Error deleting directory: {CondensedDirectory.Replace('\\', '/')}: {ex.Message}", Colors.red);
-                    }
-                }
-            }
-
-            if (ItemsDeleted == 0)
-            {
-                UserInterface.PrintMessage(" - No Files/Directories to remove! You're all clean! :)", Colors.green);
-            }
+            int indexToTrimStart = Environment.CurrentDirectory.Length + 1;
+            ItemsDeleted += DeleteEmptyFolders(Environment.CurrentDirectory, indexToTrimStart);
 
             return new long[] {ItemsDeleted, TotalBytesMoved};
         }
 
-        private static int SortDirectoryByDepth(string x, string y)
+        private static int DeleteEmptyFolders(string path, int index)
         {
-            int xDepth = x.Split('\\').Length;
-            int yDepth = y.Split('\\').Length;
-            return yDepth - xDepth;
+            int directoriesDeleted = 0;
+            foreach (string directory in Directory.GetDirectories(path))
+            {
+                string CondensedDirectory = directory[index..];
+                try
+                {
+                    if (directory.EndsWith("FILE-CLEANER-BACKUP")) continue;
+
+                    if (Directory.GetFiles(directory).Length == 0 && Directory.GetDirectories(directory).Length == 0)
+                    {
+
+                        Directory.Delete(directory);
+                        directoriesDeleted++;
+
+                        UserInterface.PrintMessage($" - Deleted directory {CondensedDirectory.Replace('\\', '/')}", Colors.red);
+                    }
+                    else
+                    {
+                        // Recursively check next directory
+                        directoriesDeleted += DeleteEmptyFolders(directory, index);
+                    }
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    UserInterface.PrintMessage($" - Error deleting directory: {CondensedDirectory.Replace('\\', '/')}: {ex.Message}", Colors.red);
+                    continue;
+                }
+            }
+
+            return directoriesDeleted;
         }
 
         public static void DeleteBackupDirectory()
