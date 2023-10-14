@@ -450,6 +450,10 @@ namespace TrackFileCleaner
 
                 try
                 {
+
+                    // if the file is locked (being used by another process) skip it
+                    if (IsFileLocked(FullPath)) continue;
+
                     string[] fileArgs = file.Split("\\");
                     string BackupDirectory = Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP\\" + fileArgs[0];
                     for (int i = 0; i < fileArgs.Length - 1; i++) 
@@ -466,7 +470,7 @@ namespace TrackFileCleaner
                         }
                     }
 
-                    File.SetAttributes(FullPath, FileAttributes.Normal);
+                    
                     long BytesToMove = new FileInfo(FullPath).Length;
                     string NewFileDestination = Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP\\" + file;
                     if (File.Exists(NewFileDestination))
@@ -476,6 +480,7 @@ namespace TrackFileCleaner
                     }
 
                     File.Move(FullPath, NewFileDestination);
+                    File.SetAttributes(NewFileDestination, FileAttributes.Normal);
 
                     // if we successfully deleted the file add to accumulators
                     TotalBytesMoved += BytesToMove;
@@ -483,7 +488,7 @@ namespace TrackFileCleaner
 
                     UserInterface.PrintMessage($" - Removed file {file.Replace('\\', '/')}", Colors.red);
                 }
-                catch (IOException ex)
+                catch (Exception ex)
                 {
                     UserInterface.PrintMessage($"- Error Removing file {file.Replace('\\', '/')}: {ex.Message}", Colors.red);
                 }
@@ -519,7 +524,7 @@ namespace TrackFileCleaner
                         directoriesDeleted += DeleteEmptyFolders(directory, index);
                     }
                 }
-                catch (UnauthorizedAccessException ex)
+                catch (Exception ex)
                 {
                     UserInterface.PrintMessage($" - Error deleting directory: {CondensedDirectory.Replace('\\', '/')}: {ex.Message}", Colors.red);
                     continue;
@@ -565,6 +570,28 @@ namespace TrackFileCleaner
                 size += DirSize(di);
             }
             return size;
+        }
+
+        private static bool IsFileLocked(string filepath)
+        {
+            try
+            {
+                using (FileStream stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    stream.Close();
+                }
+            }
+            catch (IOException)
+            {
+                // the file is unavailable because it is:
+                // still being written to
+                // or being processed by another thread
+                // or does not exist (has already been processed)
+                return true;
+            }
+
+            //file is not locked
+            return false;
         }
     }
 }
