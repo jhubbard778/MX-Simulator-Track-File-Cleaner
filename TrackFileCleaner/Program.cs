@@ -4,6 +4,7 @@ using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Text.RegularExpressions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TrackFileCleaner
 {
@@ -12,6 +13,7 @@ namespace TrackFileCleaner
         static void Main(string[] args)
         {
             UserInterface.PromptEnter();
+            Globals.SetupNonTrackFiles();
             string[] dirs = Directory.GetDirectories(Environment.CurrentDirectory, "*", SearchOption.TopDirectoryOnly);
             
             foreach (string dir in dirs)
@@ -39,7 +41,7 @@ namespace TrackFileCleaner
                 ReadAllSourceFiles(BasenameFolder, SourceFiles);
 
                 // Now that we have all the used files, go through all the files in every subdirectory and see if it's being used
-                AddUnusedFiles(BasenameFolder);
+                AddUnusedFiles(BasenameFolder, SourceFiles.Count);
 
                 // After we're done with this folder remove any used files associated with the folder
                 RemoveUsedFiles(BasenameFolder);
@@ -127,7 +129,7 @@ namespace TrackFileCleaner
                         if (File.Exists(FullSourcePath) && !Globals.UsedFilePaths.Contains(SourceFilename))
                         {
                             // If the item was in the unused files list remove it
-                            int UnusedIndex = Globals.UnusedFilePaths.IndexOf(SourceFilename.Replace('/', '\\'));
+                            int UnusedIndex = Globals.UnusedFilePaths.IndexOf(FileSourceName.Replace('/', '\\'));
                             if (UnusedIndex != -1)
                             {
                                 Globals.UnusedFilePaths.RemoveAt(UnusedIndex);
@@ -135,7 +137,7 @@ namespace TrackFileCleaner
 
                             if (!SourceFilename.Contains(folder, StringComparison.OrdinalIgnoreCase))
                             {
-                                UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference in {filenameStripped}.");
+                                UserInterface.PrintSoftWarning($"File \"{FileSourceName}\" is an outside reference in {filenameStripped}.");
                             }
 
                             Globals.UsedFilePaths.Add(SourceFilename);
@@ -189,7 +191,7 @@ namespace TrackFileCleaner
         /// it will add the normal and specular map images to the UsedFilePaths list, otherwise it will add it to the UnusedFilePaths list
         /// </summary>
         /// <param name="folder">The track folder</param>
-        private static void AddUnusedFiles(string folder)
+        private static void AddUnusedFiles(string folder, int numSourceFiles)
         {
 
             string[] files = Directory.GetFiles(Environment.CurrentDirectory + '\\' + folder, "*", SearchOption.AllDirectories);
@@ -202,14 +204,21 @@ namespace TrackFileCleaner
                 string FileName = Path.GetFileName(CondensedFilePath);
 
                 int depth = CondensedFilePath.Split('/').Length;
-
-                // Skip windows thumbs.db files
-                if (FileName == "Thumbs.db") continue;
-
-                // If it's an ignore file we will skip
-                if (depth <= 3 && Globals.IgnoreFiles.Contains(FileName)) continue;
-
                 string extension = Path.GetExtension(FileName);
+
+                // Skip windows db files
+                if (extension == ".db") continue;
+
+                if (depth <= 3)
+                {
+                    if (Globals.IgnoreFiles.Contains(FileName)) continue;
+
+                    // If we don't have any track source files in this folder we will check to see if skins are there instead
+                    if (numSourceFiles == 0)
+                    {
+                        // TODO: Check for bike or rider skins
+                    }
+                }
 
                 // if we have a saf file on the top level directory then we should skip this file
                 if (FileName.Split('/').Length == 1 && extension == ".saf") continue;
@@ -389,7 +398,7 @@ namespace TrackFileCleaner
             string jsCode = File.ReadAllText(filename);
 
             // regular expression pattern to find lines with potential file references
-            string pattern = @"(@[a-zA-Z0-9_\-/[\] ]+\.[a-zA-Z0-9]+)";
+            string pattern = @"(@[a-zA-Z0-9_\-/[\]. ]+\.[a-zA-Z0-9]+)";
 
             // Use regular expressions to find file matches
             MatchCollection matches = Regex.Matches(jsCode, pattern);
@@ -421,7 +430,7 @@ namespace TrackFileCleaner
 
                     if (!fileReference.Contains(folder, StringComparison.OrdinalIgnoreCase))
                     {
-                        UserInterface.PrintSoftWarning($"File \"{fileReference}\" is an outside reference.");
+                        UserInterface.PrintSoftWarning($"File \"{fileReference}\" is an outside reference in {Path.GetFileName(filename)}.");
                     }
                     Globals.UsedFilePaths.Add(fileReference.ToLower());
                 }
