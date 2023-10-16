@@ -203,25 +203,51 @@ namespace TrackFileCleaner
                 string CondensedFilePath = file[file.IndexOf(folder)..].Replace('\\', '/');
                 string FileName = Path.GetFileName(CondensedFilePath);
 
-                int depth = CondensedFilePath.Split('/').Length;
+                int depth = CondensedFilePath.Split('/').Length - 1;
                 string extension = Path.GetExtension(FileName);
 
-                // Skip windows db files
-                if (extension == ".db") continue;
+                // Skip windows db files and ignore folders with a depth of 1
+                if (extension == ".db" || (depth == 1 && Globals.IgnoreFolders.Contains(folder))) continue;
 
-                if (depth <= 3)
+                // if we have a saf file on the top level directory then we should skip this file
+                if (depth == 0 && extension == ".saf") continue;
+
+                // If we have a file within the scope of the game
+                if (depth <= 2) 
                 {
-                    if (Globals.IgnoreFiles.Contains(FileName)) continue;
+                    // check if it's an ignore file
+                    if (Array.IndexOf(Globals.IgnoreFiles, FileName) != -1) continue;
 
                     // If we don't have any track source files in this folder we will check to see if skins are there instead
                     if (numSourceFiles == 0)
                     {
                         // TODO: Check for bike or rider skins
+                        string? riderKeyResult = Globals.RiderFilesToIgnore.FirstOrDefault<string>(skinName => FileName.StartsWith(skinName));
+
+                        if (riderKeyResult != null)
+                        {
+                            char nextChar = FileName[riderKeyResult.Length];
+                            // We have a valid rider skin, skip to the next file
+                            if (nextChar == '.' || nextChar == '-')
+                            {
+                                continue;
+                            }
+                        }
+
+                        string[] bikeSkinsToIgnore = Globals.BikesToIgnoreList.ToArray();
+                        string? bikeKeyResult = bikeSkinsToIgnore.FirstOrDefault<string>(bikeSkin => FileName.StartsWith(bikeSkin));
+
+                        if (bikeKeyResult != null)
+                        {
+                            char nextChar = FileName[bikeKeyResult.Length];
+                            // We have a valid bike skin, skip to the next file
+                            if (nextChar == '.' || nextChar == '-' || nextChar == '_')
+                            {
+                                continue;
+                            }
+                        }
                     }
                 }
-
-                // if we have a saf file on the top level directory then we should skip this file
-                if (FileName.Split('/').Length == 1 && extension == ".saf") continue;
 
                 if (!Globals.UsedFilePaths.Contains(CondensedFilePath, StringComparer.OrdinalIgnoreCase))
                 {
