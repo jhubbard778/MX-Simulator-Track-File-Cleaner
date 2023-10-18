@@ -18,7 +18,7 @@ namespace TrackFileCleaner
             "lines_amateur","lines_expert", "lines_novice", "map.png", "shading.ppm", "shadingx2.ppm", "shadows.pgm", "terrain.hf",
             "terrain.png", "texturelist", "tilemap"}.Concat(ValidMXSimulatorFilenames).ToArray();
 
-        public readonly static string[] IgnoreFolders = new string[] { "demos", "keycam", "series", "setups", "outgoing" };
+        public readonly static string[] IgnoreFolders = new string[] { "demos", "keycam", "series", "setups", "outgoing", "reshade-shaders" };
 
         public readonly static string[] RiderFilesToIgnore = new string[]
         {
@@ -34,6 +34,8 @@ namespace TrackFileCleaner
             "250sxf", "crf250", "fc250", "kx250f", "rmz250", "yz250f", "yz250f_se",
             "350sxf", "450sxf", "crf450", "fc450", "kx450f", "rmz450", "yz450f",
         };
+
+        public readonly static string BACKUP_FOLDER = Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP";
 
         public readonly static int[] sxBikeYears = new int[] { 2013, 2016 };
         public readonly static int[] crBikeYears = new int[] { 2010, 2013, 2014, 2017, 2018 };

@@ -24,14 +24,21 @@ namespace TrackFileCleaner
             Console.WriteLine();
         }
 
-        public static void PromptBackupDeletion(long[] items, bool backupDirectoryExists)
+        public static void PromptBackupDeletion(long[] items)
         {
-            string MoveString = (backupDirectoryExists) ? "to FILE-CLEANER-BACKUP" : "";
-            string BytesToString = Program.BytesToString(items[1]);
+            long ItemsDeleted = items[0];
+            long BytesDeleted = items[1];
+
+            string MoveString = (ItemsDeleted > 0) ? $"to {Globals.BACKUP_FOLDER[(Environment.CurrentDirectory.Length + 1)..]}" : "";
+            string BytesToString = Program.BytesToString(BytesDeleted);
+
+            if (ItemsDeleted == 0) {
+                Console.WriteLine(Colors.green + "- You're all clean :)" + Colors.normal);
+            }
 
             PrintOutlinePrompt('#', $"Moved {items[0]} Items ({BytesToString}) {MoveString}", Colors.cyan);
             
-            if (backupDirectoryExists)
+            if (ItemsDeleted > 0)
             {
 
                 Console.Write("\n> Would you like to delete the backup folder? (y/n) | ");
@@ -44,7 +51,7 @@ namespace TrackFileCleaner
 
                 if (UserInput == "y")
                 {
-                    DirectoryInfo DirInfo = new DirectoryInfo(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP");
+                    DirectoryInfo DirInfo = new DirectoryInfo(Globals.BACKUP_FOLDER);
                     long totalSize = Program.DirSize(DirInfo);
                     string DirectorySize = Program.BytesToString(totalSize);
 
