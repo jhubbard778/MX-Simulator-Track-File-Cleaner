@@ -231,7 +231,7 @@ namespace TrackFileCleaner
                 if (depth == 0 && extension == ".saf") continue;
 
                 // If we have a file within the scope of the game
-                if (depth <= 2) 
+                if (depth <= 2)
                 {
                     // check if it's an ignore file
                     if (Globals.IgnoreFiles.Contains(FileName)) continue;
@@ -272,7 +272,7 @@ namespace TrackFileCleaner
                 if (!Globals.UsedFilePaths.Contains(CondensedFilePath, StringComparer.OrdinalIgnoreCase))
                 {
                     // Here we handle norm and specular maps, if the file they reference exists it's added to the UsedFilePaths list
-                    bool GotoNextFile = HandleNormsAndSpecs(CondensedFilePath, folder);
+                    bool GotoNextFile = HandleNormsAndSpecs(CondensedFilePath, folder) || IsMipmapOrLOD(CondensedFilePath);
                     if (GotoNextFile) continue;
 
                     Globals.UnusedFilePaths.Add(CondensedFilePath.Replace('/', '\\'));
@@ -308,7 +308,7 @@ namespace TrackFileCleaner
 
                     if (WarningMessage && !SourceFilename.Contains(BasenameFolder, StringComparison.OrdinalIgnoreCase))
                     {
-                        UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference.");
+                        UserInterface.PrintSoftWarning($"File \"{SourceFilename}\" is an outside reference in {Path.GetFileName(filepath)}.");
                     }
 
                     if (File.Exists(Environment.CurrentDirectory + '\\' + SourceFilename))
@@ -346,7 +346,8 @@ namespace TrackFileCleaner
                 string ImageExtension = extension;
                 if (extension == ".seq")
                 {
-                    ReadSpecialFiles(filepath, folder, SeqFiles, false);
+                    ReadSpecialFiles(filepath, folder, SeqFiles, true);
+                    if (SeqFiles.Count == 0) return false;
                     ImageExtension = Path.GetExtension(SeqFiles[0]);
                 }
 
@@ -404,7 +405,8 @@ namespace TrackFileCleaner
 
                 if (extension == ".seq")
                 {
-                    ReadSpecialFiles(filepath, folder, SeqFiles, false);
+                    ReadSpecialFiles(filepath, folder, SeqFiles, true);
+                    if (SeqFiles.Count == 0) return false;
                     ImageExtension = Path.GetExtension(SeqFiles[0]);
                 }
 
@@ -678,6 +680,24 @@ namespace TrackFileCleaner
 
                 sr.Close();
             }
+        }
+
+        private static bool IsMipmapOrLOD(string path)
+        {
+            string ReferenceFilename;
+            if (Path.GetExtension(path) == ".info")
+            {
+                ReferenceFilename = path[..path.IndexOf(".info")].ToLower();
+                return Globals.UsedFilePaths.Contains(ReferenceFilename);
+            }
+
+            string pattern = @"_lod\d+\.jm$";
+            Match match = Regex.Match(path, pattern);
+
+            if (!match.Success) return false;
+
+            ReferenceFilename = path[..match.Index].ToLower() + ".jm";
+            return Globals.UsedFilePaths.Contains(ReferenceFilename);
         }
     }
 }
