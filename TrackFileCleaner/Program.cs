@@ -228,7 +228,7 @@ namespace TrackFileCleaner
                 if (extension == ".db" || Globals.IgnoreFolders.Contains(folder)) continue;
 
                 // if we have a saf file on the top level directory then we should skip this file
-                if (depth == 0 && extension == ".saf") continue;
+                if (depth <= 1 && extension == ".saf") continue;
 
                 // If we have a file within the scope of the game
                 if (depth <= 2)

@@ -29,7 +29,7 @@ namespace TrackFileCleaner
             long ItemsDeleted = items[0];
             long BytesDeleted = items[1];
 
-            string MoveString = (ItemsDeleted > 0) ? $"to {Globals.BACKUP_FOLDER[(Environment.CurrentDirectory.Length + 1)..]}" : "";
+            string MoveString = (BytesDeleted > 0) ? $"to {Globals.BACKUP_FOLDER[(Environment.CurrentDirectory.Length + 1)..]}" : "";
             string BytesToString = Program.BytesToString(BytesDeleted);
 
             if (ItemsDeleted == 0) {
@@ -38,7 +38,7 @@ namespace TrackFileCleaner
 
             PrintOutlinePrompt('#', $"Moved {items[0]} Items ({BytesToString}) {MoveString}", Colors.cyan);
             
-            if (ItemsDeleted > 0)
+            if (BytesDeleted > 0)
             {
 
                 Console.Write("\n> Would you like to delete the backup folder? (y/n) | ");

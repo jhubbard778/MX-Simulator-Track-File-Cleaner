@@ -20,7 +20,7 @@ You will need .NET Runtime 7.0 or greater to be able to execute this program. Yo
 6. At the end of the execution, you can choose if you want to delete the FILE-CLEANER-BACKUP folder. This will delete any and all files/directories inside this folder. If you are sure nothing important was lost, you can safely remove it. **Note:** *Deleting the backup directory from inside the program does not move the files to your recycle bin, it will permanently remove it from your pc.*
 
 ## False Positive Virus Detection
-This program deals with the process of moving files / deleting empty directories on your computer. For that reason it might get marked as a virus.  This is a false positive and can be ignored.  You can verify the process of moving / deleting by looking at the source code found [here](https://github.com/jhubbard778/MX-Simulator-Track-File-Cleaner/blob/master/TrackFileCleaner/Program.cs#L467).
+This program deals with the process of moving files / deleting empty directories on your computer. For that reason it might get marked as a virus.  This is a false positive and can be ignored.  You can verify the process of moving / deleting by looking at the source code found [here](https://github.com/jhubbard778/MX-Simulator-Track-File-Cleaner/blob/master/TrackFileCleaner/Program.cs#L491).
 
 ## Notes
 - Any files not being used by tracks will be marked to be moved to the backup folder labeled ``FILE-CLEANER-BACKUP`` that is made in the directory of your application.
