@@ -7,7 +7,7 @@ This program is meant to clean up any files not being used by tracks in your MX 
 You will need .NET Runtime 7.0 or greater to be able to execute this program. You can download .NET Runtime 7.0 on Microsoft's official [download](https://dotnet.microsoft.com/en-us/download/dotnet/7.0) page. Further instructions can be found [here](https://learn.microsoft.com/en-us/dotnet/core/install/windows?tabs=net70).
 
 ## Instructions
-1. Download the [Zip](https://github.com/jhubbard778/MX-Simulator-Track-File-Cleaner/archive/refs/heads/master.zip) and extract the Track File Cleaner Folder.
+1. Download the [Latest Release](https://github.com/jhubbard778/MX-Simulator-Track-File-Cleaner/releases/tag/v1.0.0).
 
 2. Move TrackFileCleaner.exe to either your MX Simulator Install Folder or MX Simulator Personal Folder.  If you want to single out just one track, make a copy of it and put both the application and track into an empty new folder.
 
