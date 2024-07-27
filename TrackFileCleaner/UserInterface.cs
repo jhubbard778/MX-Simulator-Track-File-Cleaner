@@ -24,14 +24,21 @@ namespace TrackFileCleaner
             Console.WriteLine();
         }
 
-        public static void PromptBackupDeletion(long[] items, bool backupDirectoryExists)
+        public static void PromptBackupDeletion(long[] items)
         {
-            string MoveString = (backupDirectoryExists) ? "to FILE-CLEANER-BACKUP" : "";
-            string BytesToString = Program.BytesToString(items[1]);
+            long ItemsDeleted = items[0];
+            long BytesDeleted = items[1];
+
+            string MoveString = (BytesDeleted > 0) ? $"to {Globals.BACKUP_FOLDER[(Environment.CurrentDirectory.Length + 1)..]}" : "";
+            string BytesToString = Program.BytesToString(BytesDeleted);
+
+            if (ItemsDeleted == 0) {
+                Console.WriteLine(Colors.green + "- You're all clean :)" + Colors.normal);
+            }
 
             PrintOutlinePrompt('#', $"Moved {items[0]} Items ({BytesToString}) {MoveString}", Colors.cyan);
             
-            if (backupDirectoryExists)
+            if (BytesDeleted > 0)
             {
 
                 Console.Write("\n> Would you like to delete the backup folder? (y/n) | ");
@@ -44,7 +51,7 @@ namespace TrackFileCleaner
 
                 if (UserInput == "y")
                 {
-                    DirectoryInfo DirInfo = new DirectoryInfo(Environment.CurrentDirectory + "\\FILE-CLEANER-BACKUP");
+                    DirectoryInfo DirInfo = new DirectoryInfo(Globals.BACKUP_FOLDER);
                     long totalSize = Program.DirSize(DirInfo);
                     string DirectorySize = Program.BytesToString(totalSize);
 
@@ -90,14 +97,14 @@ namespace TrackFileCleaner
 
             description = WrapString(description, MAX_CHARACTER_LIMIT);
 
-            string warning = "- WARNING: This executable deletes any non-related track files.  " +
+            string warning = "- WARNING: This program deletes any non-related track files.  " +
                 "This means that any file not referenced by a track in the working directory will be deleted!\n";
 
-            warning = Colors.bright + Colors.red + WrapString(warning, MAX_CHARACTER_LIMIT) + new string('-', MAX_CHARACTER_LIMIT) + '\n' + Colors.normal;
+            warning = Colors.bright + Colors.red + WrapString(warning, MAX_CHARACTER_LIMIT) + Colors.blue + new string('-', MAX_CHARACTER_LIMIT) + '\n' + Colors.normal;
 
             string extraDescription = "- There is a safeguard in place by creating a backup folder. If you think anything important might've been deleted, you " +
                 "can go back and grab it in 'FILE-CLEANER-BACKUP'. At the end of the execution of the program, you will be prompted if you would like to delete " +
-                "the backup folder. If you are sure every file in there is non-essential you can delete it.\n";
+                "the backup folder. If you are sure you want to delete the folder you can delete it.\n";
 
             extraDescription = Colors.bright + WrapString(extraDescription, MAX_CHARACTER_LIMIT) + Colors.normal;
 
