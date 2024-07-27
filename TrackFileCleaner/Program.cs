@@ -211,6 +211,8 @@ namespace TrackFileCleaner
         /// <param name="folder">The track folder</param>
         private static void AddUnusedFiles(string folder, int numSourceFiles)
         {
+            // Skip folder if folder is an ignore folder
+            if (Globals.IgnoreFolders.Contains(folder, StringComparer.OrdinalIgnoreCase)) return;
 
             string[] files = Directory.GetFiles(Environment.CurrentDirectory + '\\' + folder, "*", SearchOption.AllDirectories);
             foreach (string file in files)
@@ -224,8 +226,8 @@ namespace TrackFileCleaner
                 int depth = CondensedFilePath.Split('/').Length - 1;
                 string extension = Path.GetExtension(FileName);
 
-                // Skip windows db files and skip any files in the ignore folders
-                if (extension == ".db" || Globals.IgnoreFolders.Contains(folder)) continue;
+                // Skip windows db files
+                if (extension == ".db") continue;
 
                 // if we have a saf file on the top level directory then we should skip this file
                 if (depth <= 1 && extension == ".saf") continue;
@@ -234,13 +236,13 @@ namespace TrackFileCleaner
                 if (depth <= 2)
                 {
                     // check if it's an ignore file
-                    if (Globals.IgnoreFiles.Contains(FileName)) continue;
+                    if (Globals.IgnoreFiles.Contains(FileName, StringComparer.OrdinalIgnoreCase)) continue;
 
                     // If we don't have any track source files in this folder we will check to see if skins are there instead
                     if (numSourceFiles == 0)
                     {
                         // TODO: Check for bike or rider skins
-                        string? RiderKeyResult = Globals.RiderFilesToIgnore.FirstOrDefault<string>(skinName => FileName.StartsWith(skinName));
+                        string? RiderKeyResult = Globals.RiderFilesToIgnore.FirstOrDefault<string>(skinName => FileName.StartsWith(skinName, StringComparison.OrdinalIgnoreCase));
                         char[] ValidNextCharacters = { '.', '-', '_', ' ' };
 
 
@@ -255,7 +257,7 @@ namespace TrackFileCleaner
                         }
 
                         string[] bikeSkinsToIgnore = Globals.BikesToIgnoreList.ToArray();
-                        string? bikeKeyResult = bikeSkinsToIgnore.FirstOrDefault<string>(bikeSkin => FileName.StartsWith(bikeSkin));
+                        string? bikeKeyResult = bikeSkinsToIgnore.FirstOrDefault<string>(bikeSkin => FileName.StartsWith(bikeSkin, StringComparison.OrdinalIgnoreCase));
 
                         if (bikeKeyResult != null)
                         {
