@@ -15,8 +15,8 @@ namespace TrackFileCleaner
 
         // The files we will not delete
         public readonly static string[] IgnoreFiles = new string[] {"cameras", "desc", "edinfo", "fastlap.mxdemo", "lastlap.mxdemo",
-            "lines_amateur","lines_expert", "lines_novice", "map.png", "shading.ppm", "shadingx2.ppm", "shadows.pgm", "terrain.hf",
-            "terrain.png", "texturelist", "tilemap"}.Concat(ValidMXSimulatorFilenames).ToArray();
+            "lines_amateur","lines_expert", "lines_novice", "map.png", "map.png.scram", "shading.ppm", "shadingx2.ppm", "shadows.pgm", "terrain.hf",
+            "terrain.png", "terrain.png.scram", "texturelist", "tilemap"}.Concat(ValidMXSimulatorFilenames).ToArray();
 
         public readonly static string[] IgnoreFolders = new string[] { "demos", "keycam", "series", "setups", "outgoing", "reshade-shaders" };
 
